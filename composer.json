@@ -1,0 +1,35 @@
+{
+    "name": "krak/symfony-messenger-redis",
+    "description": "Symfony Messenger Redis Adapter",
+    "type": "symfony-bundle",
+    "authors": [
+        {
+            "name": "RJ Garcia",
+            "email": "rj@bighead.net"
+        }
+    ],
+    "require": {
+        "ext-json": "*",
+        "ext-redis": "*",
+        "symfony/messenger": "4.1.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Krak\\SymfonyMessengerRedis\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Krak\\SymfonyMessengerRedis\\Tests\\": "tests"
+        }
+    },
+    "require-dev": {
+        "monolog/monolog": "^1.23",
+        "phpunit/phpunit": "^7.3",
+        "symfony/dependency-injection": "^4.1",
+        "symfony/http-kernel": "^4.1",
+        "symfony/process": "^4.1",
+        "symfony/property-access": "^4.1",
+        "symfony/serializer": "^4.1"
+    }
+}
