@@ -21,20 +21,22 @@ final class RedisConnection implements MetricsRepository
     }
 
     public static function fromDsn(string $dsn, array $options = []): self {
-        $parsedUrl = parse_url($dsn);
+        $parsedUrl = \parse_url($dsn);
         if (!$parsedUrl) {
             throw new \InvalidArgumentException(sprintf('The given Redis DSN "%s" is invalid.', $dsn));
         }
 
-        if (!isset($options['queue'])) {
-            throw new \InvalidArgumentException(sprintf('The queue option must be included in the configuration options.'));
+        \parse_str($parsedUrl['query'] ?? '', $query);
+
+        if ($options['queue'] ?? $query['queue'] ?? null) {
+            throw new \InvalidArgumentException(sprintf('The queue option must be included in the query parameters or configuration options.'));
         }
 
         return new self(
             new Redis(),
-            $options['queue'],
+            $options['queue'] ?? $query['queue'],
             [$parsedUrl['host'] ?? '127.0.0.1', intval($parsedUrl['port'] ?? 6379)],
-            $options['blocking_timeout'] ?? 30
+            $options['blocking_timeout'] ?? $query['blocking_timeout'] ?? 30
         );
     }
 

@@ -39,7 +39,7 @@ This will register a transport named `acme_redis` which will properly use the co
 
 ### Available Options
 
-Here are the available options that can be provided to the transport options array:
+Here are the available options that can be provided to the transport options array or as query parameters:
 
 - **blocking_timeout:**
   - *required:* no
