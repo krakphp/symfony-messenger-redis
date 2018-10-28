@@ -8,6 +8,7 @@
             "email": "rj@bighead.net"
         }
     ],
+    "license": "MIT",
     "require": {
         "ext-json": "*",
         "ext-redis": "*",
