@@ -28,7 +28,7 @@ final class RedisConnection implements MetricsRepository
 
         \parse_str($parsedUrl['query'] ?? '', $query);
 
-        if ($options['queue'] ?? $query['queue'] ?? null) {
+        if (($options['queue'] ?? $query['queue'] ?? null) === null) {
             throw new \InvalidArgumentException(sprintf('The queue option must be included in the query parameters or configuration options.'));
         }
 
