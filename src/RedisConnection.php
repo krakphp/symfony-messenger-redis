@@ -10,13 +10,15 @@ final class RedisConnection implements MetricsRepository
     private $queue;
     private $connectParams;
     private $blockingTimeout;
+    private $configureConnection;
     private $isConnected;
 
-    public function __construct(Redis $redis, string $queue, array $connectParams = ['127.0.0.1', 6379], int $blockingTimeout = 30) {
+    public function __construct(Redis $redis, string $queue, array $connectParams = ['127.0.0.1', 6379], int $blockingTimeout = 30, callable $configureConnection = null) {
         $this->redis = $redis;
         $this->queue = $queue;
         $this->connectParams = $connectParams;
         $this->blockingTimeout = $blockingTimeout;
+        $this->configureConnection = $configureConnection;
         $this->isConnected = false;
     }
 
@@ -36,7 +38,13 @@ final class RedisConnection implements MetricsRepository
             new Redis(),
             $options['queue'] ?? $query['queue'],
             [$parsedUrl['host'] ?? '127.0.0.1', intval($parsedUrl['port'] ?? 6379)],
-            $options['blocking_timeout'] ?? $query['blocking_timeout'] ?? 30
+            $options['blocking_timeout'] ?? $query['blocking_timeout'] ?? 30,
+            function(Redis $conn) use ($query, $options) {
+                $db = $options['db'] ?? $query['db'] ?? null;
+                if ($db !== null) {
+                    $conn->select($db);
+                }
+            }
         );
     }
 
@@ -75,6 +83,9 @@ final class RedisConnection implements MetricsRepository
 
         $this->isConnected = true;
         $this->redis->connect(...$this->connectParams);
+        if ($configureConnection = $this->configureConnection) {
+            $configureConnection($this->redis);
+        }
     }
 
     private function clearMessageFromProcessingQueue(Redis $redis, string $message) {
