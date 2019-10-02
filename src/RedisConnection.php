@@ -44,6 +44,10 @@ final class RedisConnection implements MetricsRepository
                 if ($db !== null) {
                     $conn->select($db);
                 }
+                $auth = $parsedUrl['pass'] ?? null;
+                if ($auth) {
+                    $conn->auth($auth);
+                }
             }
         );
     }
