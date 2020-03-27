@@ -96,8 +96,8 @@ framework:
 
 ## Testing
 
-You can run the unit tests with: `make unit-test`
+You can run the test suite with: `composer test`
 
-You can run the integration tests with: `make integration-test`. Keep in mind that you will need to have the redis-ext installed on your local php cli, and will need to start up the redis instance in docker via `docker-compose`.
+You'll need to start the redis docker container locally in order for the Feature test suite to pass.
 
-We do have functional tests as well that were used to stress test which are found in the tests/functional folder. Those have the same system requirements as the integration tests.
+Keep in mind that you will need to have the redis-ext installed on your local php cli, and will need to start up the redis instance in docker via `docker-compose`.
