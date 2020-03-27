@@ -1,0 +1,12 @@
+framework:
+  serializer:
+    enabled: true
+  messenger:
+    transports:
+      krak_redis: 'redis://localhost:6379?queue=messenger'
+      sf_redis:
+        dsn: 'redis://localhost:6379'
+        options: { use_krak_redis: false }
+    routing:
+      'Krak\SymfonyMessengerRedis\Tests\Feature\Fixtures\KrakRedisMessage': krak_redis
+      'Krak\SymfonyMessengerRedis\Tests\Feature\Fixtures\SfRedisMessage': sf_redis

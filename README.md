@@ -1,15 +1,14 @@
 # Symfony Messenger Redis Adapter
 
-This provides custom Redis Integration with the Symfony Messenger 4.1 system. There already exists an implementation for 4.0, but that is not compatabile with the 4.1 integration (due to Messenger's BC policy).
+This provides custom Redis List Integration with the Symfony Messenger ^4.4 system.
 
-It also includes some Enhancers for AutoScaling which provide receivers the ability to properly auto scale requests depending on metrics provided from the Queue.
+The standard redis implementation requires redis 5.0 and utilizes the streams feature, this adapter uses redis lists to power the queue functionality.
 
 ## Installation
 
-Currently, this is best installed by cloning the repo as a submodule then using [path type composer repository](https://getcomposer.org/doc/05-repositories.md#path). This is under the `krak/symfony-messenger-redis`.
+Install with composer at `krak/symfony-messenger-redis`.
 
-Until this is in a composer repository, you'll probably need to manually include the bundle in your `config/bundles.php` file like so:
-
+If symfony's composer install doesn't automatically register the bundle, you can do so manually:
 
 ```php
 <?php
@@ -37,14 +36,33 @@ Where `MESSENGER_TRANSPORT_DSN` env is like: `redis://localhost:6379`
 
 This will register a transport named `acme_redis` which will properly use the configured Redis transport from this library.
 
+### Unique Messages
+
+If you ever need to ensure that you a specific job needs to be unique while waiting in the queue, you can use the UniqueStamp.
+
+```php
+use Symfony\Component\Messenger\Envelope;
+use Krak\SymfonyMessengerRedis\Stamp\UniqueStamp;
+Envelope::wrap($message)->with(new UniqueStamp('optional-unique-id'));
+```
+
+If you don't pass an identifier to enforce uniqueness, the transport will perform an md5 hash of the message body to create an identifier.
+
+Example usage of this stamp:
+
+- You dispatch a ProductUpdatedMessage every time a product is saved in one system.
+- You have message handlers that then do some expensive operation based off of that product information
+- In the event a single product gets saved rapidly without effectively changing, it makes no sense to enqueue the same job for that product 100 times
+- Using the unique stamp ensures that if a message is already in the queue for that specific product, don't add in another message since the original message hasn't been processed yet.
+
+### Delayed Messages
+
+This library supports the DelayStamp provided by the core SF messenger.
+
 ### Available Options
 
 Here are the available options that can be provided to the transport options array or as query parameters:
 
-- **blocking_timeout:**
-  - *required:* no
-  - *default:* 30
-  - *description:* The number of seconds for the redis bRpopLpush command to block. **DO NOT** set this value over or around60 seconds or you will experience `redis failed to read` type errors due to a bug in the redis extension.
 - **queue:**
   - *required:* yes
   - *default:* N/A
@@ -60,15 +78,21 @@ However, if for some reason a worker is killed via `SIGKILL` (aka `kill -9`), th
 
 It won't hurt anything other than storage to have those `_processing` lists take up space. It also *shouldn't* hurt anything to periodically just wipe out those lists using the `DEL` command. But that would need to be verified that it wouldn't hurt any running workers (which I don't think it will).
 
-### ReQueing Failed Messages
+### Using Symfony's Redis Transport at the same time
 
-This library makes absolutely no attempt to requeue a message once it's failed. I've found in practice that if a message fails once, it will almost always fail again if re-tried shortly after.
+Both symfony's redis and the krak redis transport register the dsn prefix: `redis://`. In the scenario that you want to support both transports, you'll need to use the `use_krak_redis` option to disable this libraries redis transport.
 
-Furthermore, The consequences for having code that can retry after failure mean that all operations must be idempotent, but typically, queued jobs by nature are not that way because they might be integrating with external vendors or payment processing systems that might cause duplicate charges or orders being made (due to an error and then retrying the same message).
-
-I imagine in the future we will support better logging of failed messages and the possibility to store failed messages in a db table, but that would be handled via a Receiver decorator and not from the actual redis queing system.
-
-It's important to note that currently, this library does not handle any cleaning of the processed queue.
+```yaml
+framework:
+  messenger:
+    transports:
+      krak_redis:
+        dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+        options: { queue: queue_acme }
+      sf_redis:
+        dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+        options: { use_krak_redis: false } # this allows symfony's redis transport factory to take precedence
+```
 
 ## Testing
 
