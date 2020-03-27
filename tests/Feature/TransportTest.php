@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
+use Symfony\Component\Messenger\Transport\Serialization\Serializer;
 
 final class TransportTest extends TestCase
 {
@@ -19,7 +20,7 @@ final class TransportTest extends TestCase
 
     protected function setUp() {
         parent::setUp();
-        $this->transport = RedisTransport::fromDsn(new PhpSerializer(), getenv('REDIS_DSN'));
+        $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN'));
         $this->redis = new \Redis();
         $this->redis->connect('127.0.0.1');
         $this->redis->flushAll();
@@ -138,7 +139,7 @@ final class TransportTest extends TestCase
         $encodedMessage = $this->redis->lPop('messenger');
         $this->assertEquals(
             <<<'CONTENT'
-{"body":"O:36:\\\"Symfony\\\\Component\\\\Messenger\\\\Envelope\\\":2:{s:44:\\\"\\0Symfony\\\\Component\\\\Messenger\\\\Envelope\\0stamps\\\";a:0:{}s:45:\\\"\\0Symfony\\\\Component\\\\Messenger\\\\Envelope\\0message\\\";O:66:\\\"Krak\\\\SymfonyMessengerRedis\\\\Tests\\\\Feature\\\\Fixtures\\\\KrakRedisMessage\\\":0:{}}","uniqueId":null}
+{"body":"{\"id\":null}","headers":{"type":"Krak\\SymfonyMessengerRedis\\Tests\\Feature\\Fixtures\\KrakRedisMessage","Content-Type":"application\/json"},"uniqueId":null}
 CONTENT,
             $encodedMessage
         );
