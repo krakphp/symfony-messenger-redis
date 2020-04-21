@@ -6,7 +6,9 @@ use Krak\SymfonyMessengerRedis\Stamp\UniqueStamp;
 use Krak\SymfonyMessengerRedis\Transport\RedisTransport;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Stamp\BusNameStamp;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\Serializer;
 
@@ -22,7 +24,7 @@ final class TransportTest extends TestCase
         parent::setUp();
         $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN'));
         $this->redis = new \Redis();
-        $this->redis->connect('127.0.0.1');
+        $this->redis->connect('redis');
         $this->redis->flushAll();
     }
 
@@ -37,6 +39,15 @@ final class TransportTest extends TestCase
     public function can_ack_a_message() {
         $this->given_there_is_a_wrapped_message();
         $this->when_the_message_is_sent_received_and_acked();
+        $this->then_the_queues_are_empty();
+    }
+
+    /** @test */
+    public function can_ack_a_message_with_new_stamps() {
+        $this->given_there_is_a_wrapped_message();
+        $this->when_the_message_is_sent_received_and_acked(function(Envelope $env) {
+            return $env->with(new BusNameStamp('bus'));
+        });
         $this->then_the_queues_are_empty();
     }
 
@@ -116,9 +127,10 @@ final class TransportTest extends TestCase
         }
     }
 
-    private function when_the_message_is_sent_received_and_acked() {
+    private function when_the_message_is_sent_received_and_acked(callable $stampEnv = null) {
         $this->transport->send($this->envelope);
         [$env] = $this->transport->get();
+        $env = $stampEnv ? $stampEnv($env) : $env;
         $this->transport->ack($env);
     }
 
@@ -140,8 +152,8 @@ final class TransportTest extends TestCase
         $this->assertEquals(
             <<<'CONTENT'
 {"body":"{\"id\":null}","headers":{"type":"Krak\\SymfonyMessengerRedis\\Tests\\Feature\\Fixtures\\KrakRedisMessage","Content-Type":"application\/json"},"uniqueId":null}
-CONTENT,
-            $encodedMessage
+CONTENT
+            , $encodedMessage
         );
     }
 

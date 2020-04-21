@@ -9,7 +9,7 @@
     <php>
         <ini name="error_reporting" value="-1" />
         <env name="SHELL_VERBOSITY" value="-1" />
-        <env name="REDIS_DSN" value="redis://localhost:6379?queue=messenger"/>
+        <env name="REDIS_DSN" value="redis://redis:6379?queue=messenger"/>
     </php>
     <testsuites>
         <testsuite name="feature">

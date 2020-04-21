@@ -6,6 +6,7 @@ use Krak\SymfonyMessengerRedis\Stamp\UniqueStamp;
 use Redis;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
@@ -65,10 +66,11 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
         );
     }
 
+    /** @return Envelope[] */
     public function get(): iterable {
         $this->connect();
         $this->redis->clearLastError();
-        $message = $this->redis->eval($this->popLuaScript(), [
+        $encodedMessage = $this->redis->eval($this->popLuaScript(), [
             $this->getUniqueSetName(),
             $this->getDelayedSetName(),
             $this->queue,
@@ -80,24 +82,26 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
             throw new TransportException('Failed to retrieve message from queue. Redis Error: ' . $this->redis->getLastError());
         }
 
-        if (!$message) {
+        if (!$encodedMessage) {
             return [];
         }
 
-        $res = json_decode($message, true);
+        $res = json_decode($encodedMessage, true);
         $message = isset($res[0], $res[1]) ? ['body' => $res[0], 'headers' => $res[1]] : $res;
         $envelope = $this->serializer->decode($message);
-        return [$envelope];
+        return [$envelope->with(new TransportMessageIdStamp($encodedMessage))];
     }
 
     public function ack(Envelope $env): void {
         $this->connect();
-        $this->clearMessageFromProcessingQueue($this->redis, $this->encodeEnvelope($env));
+        $transportIdStamp = $env->last(TransportMessageIdStamp::class);
+        $this->clearMessageFromProcessingQueue($this->redis, $transportIdStamp ? $transportIdStamp->getId() : $this->encodeEnvelope($env));
     }
 
     public function reject(Envelope $env): void {
         $this->connect();
-        $this->clearMessageFromProcessingQueue($this->redis, $this->encodeEnvelope($env));
+        $transportIdStamp = $env->last(TransportMessageIdStamp::class);
+        $this->clearMessageFromProcessingQueue($this->redis, $transportIdStamp ? $transportIdStamp->getId() : $this->encodeEnvelope($env));
     }
 
     public function send(Envelope $env): Envelope {
