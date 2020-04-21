@@ -142,7 +142,7 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
         $encoded = $this->serializer->encode($env);
         /** @var UniqueStamp|null $uniqueStamp */
         $uniqueStamp = $env->last(UniqueStamp::class);
-        $uniqueId = $uniqueStamp ? ($uniqueStamp->getId() ?: md5($encoded['body'])) : null;
+        $uniqueId = $uniqueStamp ? strval($uniqueStamp->getId() ?: md5($encoded['body'])) : null;
         return [\json_encode(array_merge($encoded, [
             'uniqueId' => $uniqueId,
         ])), $uniqueId];
@@ -238,7 +238,7 @@ if message == false then
 end
 
 local decodedMessage = cjson.decode(message)
-if decodedMessage["uniqueId"] ~= cjson.null then
+if type(decodedMessage["uniqueId"]) == "string" then
   redis.call("SREM", uniqueSetKey, decodedMessage["uniqueId"])
 end
 

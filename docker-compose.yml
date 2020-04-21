@@ -10,5 +10,4 @@ services:
   redis:
     image: redis
     environment: { TERM: xterm }
-    ports: ["6379:6379"]
     restart: unless-stopped

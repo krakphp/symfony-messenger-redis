@@ -58,6 +58,20 @@ final class TransportTest extends TestCase
         $this->then_the_queues_are_empty();
     }
 
+    /** @test */
+    public function can_receive_messages_from_legacy_serialization_format() {
+        $this->given_there_is_a_message_on_the_queue_with_legacy_serialization();
+        $this->when_the_message_is_received_and_acked();
+        $this->then_the_queues_are_empty();
+    }
+
+    private function given_there_is_a_message_on_the_queue_with_legacy_serialization() {
+        $this->redis->lPush('messenger', json_encode([
+            json_encode(['id' => null]),
+            ['type' => "Krak\\SymfonyMessengerRedis\\Tests\\Feature\\Fixtures\\KrakRedisMessage"],
+        ]));
+    }
+
     /**
      * @test
      * @dataProvider provide_unique_message_ids
@@ -129,6 +143,10 @@ final class TransportTest extends TestCase
 
     private function when_the_message_is_sent_received_and_acked(callable $stampEnv = null) {
         $this->transport->send($this->envelope);
+        $this->when_the_message_is_received_and_acked($stampEnv);
+    }
+
+    private function when_the_message_is_received_and_acked(callable $stampEnv = null) {
         [$env] = $this->transport->get();
         $env = $stampEnv ? $stampEnv($env) : $env;
         $this->transport->ack($env);
