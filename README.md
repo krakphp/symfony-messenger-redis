@@ -1,6 +1,6 @@
 # Symfony Messenger Redis Adapter
 
-![PHP Tests](https://github.com/krakphp/symfony-messenger-redis/workflows/PHP%20Tests/badge.svg)
+![PHP Tests](https://github.com/krakphp/symfony-messenger-redis/workflows/PHP%20Tests/badge.svg?branch=master&event=push)
 
 This provides custom Redis List Integration with the Symfony Messenger ^4.4 system.
 
