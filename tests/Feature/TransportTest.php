@@ -25,7 +25,16 @@ final class TransportTest extends TestCase
         $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN'));
         $this->redis = new \Redis();
         $this->redis->connect('redis');
+        $this->redis->auth('password123');
         $this->redis->flushAll();
+    }
+
+    /** @test */
+    public function allows_custom_db() {
+        $this->given_the_redis_transport_contains_db();
+        $this->given_there_is_a_wrapped_message();
+        $this->when_the_message_is_sent_received_and_acked();
+        $this->then_the_queues_are_empty();
     }
 
     /** @test */
@@ -188,5 +197,10 @@ CONTENT
         usleep($delayMs * 1000);
         $res = $this->transport->get();
         $this->assertCount(1, $res);
+    }
+
+    public function given_the_redis_transport_contains_db()
+    {
+        $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN'), ['db' => 2]);
     }
 }
