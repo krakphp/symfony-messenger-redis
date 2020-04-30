@@ -54,13 +54,14 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
             $options['queue'] ?? $query['queue'],
             [$parsedUrl['host'] ?? '127.0.0.1', intval($parsedUrl['port'] ?? 6379)],
             function(Redis $conn) use ($query, $parsedUrl, $options) {
-                $db = $options['db'] ?? $query['db'] ?? null;
-                if ($db !== null) {
-                    $conn->select($db);
-                }
                 $auth = $options['password'] ?? $parsedUrl['pass'] ?? null;
                 if ($auth) {
                     $conn->auth($auth);
+                }
+                $db = $options['db'] ?? $query['db'] ?? null;
+                if ($db !== null) {
+                    $db = intval($db);
+                    $conn->select($db);
                 }
             }
         );

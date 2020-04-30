@@ -3,9 +3,9 @@ framework:
     enabled: true
   messenger:
     transports:
-      krak_redis: 'redis://redis:6379?queue=messenger'
+      krak_redis: 'redis://u:password123@redis:6379?queue=messenger'
       sf_redis:
-        dsn: 'redis://redis:6379'
+        dsn: 'redis://u:password123@redis:6379'
         options: { use_krak_redis: false }
     routing:
       'Krak\SymfonyMessengerRedis\Tests\Feature\Fixtures\KrakRedisMessage': krak_redis

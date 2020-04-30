@@ -9,5 +9,6 @@ services:
       - ./:/var/www/html
   redis:
     image: redis
+    command: redis-server --requirepass password123
     environment: { TERM: xterm }
     restart: unless-stopped
