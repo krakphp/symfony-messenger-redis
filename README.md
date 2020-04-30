@@ -1,5 +1,7 @@
 # Symfony Messenger Redis Adapter
 
+![PHP Tests](https://github.com/krakphp/symfony-messenger-redis/workflows/PHP%20Tests/badge.svg)
+
 This provides custom Redis List Integration with the Symfony Messenger ^4.4 system.
 
 The standard redis implementation requires redis 5.0 and utilizes the streams feature, this adapter uses redis lists to power the queue functionality.
