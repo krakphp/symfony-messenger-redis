@@ -58,9 +58,9 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
                 if ($auth) {
                     $conn->auth($auth);
                 }
-                $db = $options['db'] ?? $query['db'] ?? null;
+                $db = $parsedUrl['path'] ?? $options['db'] ?? $query['db'] ?? null;
                 if ($db !== null) {
-                    $db = intval($db);
+                    $db = intval(ltrim($db, '/'));
                     $conn->select($db);
                 }
             }

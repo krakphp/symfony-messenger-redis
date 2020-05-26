@@ -29,12 +29,21 @@ final class TransportTest extends TestCase
         $this->redis->flushAll();
     }
 
-    /** @test */
-    public function allows_custom_db() {
-        $this->given_the_redis_transport_contains_db();
+    /**
+     * @test
+     * @dataProvider provide_custom_redis_urls_with_db
+     */
+    public function allows_custom_db(string $place) {
+        $this->given_the_redis_transport_contains_db('1', $place);
         $this->given_there_is_a_wrapped_message();
-        $this->when_the_message_is_sent_received_and_acked();
+        $this->when_the_message_is_sent_on_the_transport();
         $this->then_the_queues_are_empty();
+    }
+
+    public function provide_custom_redis_urls_with_db() {
+        yield 'db in query params' => ['query_string'];
+        yield 'db in path' => ['path'];
+        yield 'db in options' => ['options'];
     }
 
     /** @test */
@@ -199,8 +208,17 @@ CONTENT
         $this->assertCount(1, $res);
     }
 
-    public function given_the_redis_transport_contains_db()
+    public function given_the_redis_transport_contains_db(string $db, string $place)
     {
-        $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN'), ['db' => 2]);
+        if ($place === 'options') {
+            $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN'), ['db' => $db]);
+        } else if ($place === 'query_string') {
+            $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN').'&db='.$db);
+        } else if ($place === 'path') {
+            [$base, $query] = explode('?', getenv('REDIS_DSN'));
+            $this->transport = RedisTransport::fromDsn(Serializer::create(), $base . '/'.$db . '?' . $query);
+        } else {
+            throw new \LogicException('Invalid place: ' . $place);
+        }
     }
 }
