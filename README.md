@@ -69,6 +69,10 @@ Here are the available options that can be provided to the transport options arr
   - *required:* yes
   - *default:* N/A
   - *description:* The internal list name to use for storing the messages in redis. The system will also create a processing queue named `{queue}_processing` for storing the processed messages.
+- **db:**
+  - *required:* no
+  - *default:* N/A
+  - *description:* The redis database to select when performing redis operations. This value can also be set from the dsn via a query parameter or by setting the path in the dsn (`redis//redis:6379?db=1` or `redis://redis:6379/1`).
 
 ### Processed Queue
 
