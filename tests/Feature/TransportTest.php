@@ -49,6 +49,12 @@ final class TransportTest extends TestCase
     }
 
     /** @test */
+    public function supports_tls() {
+        $this->given_the_redis_transport_is_setup_from_dsn_and_options('rediss://redis?queue=messenger');
+        $this->then_the_redis_transport_connect_params_use_tls();
+    }
+
+    /** @test */
     public function can_send_a_message() {
         $this->given_there_is_a_wrapped_message();
         $this->when_the_message_is_sent_on_the_transport();
@@ -220,18 +226,26 @@ CONTENT
         );
     }
 
-    public function then_the_queue_has_size(int $size): void {
+    private function then_the_queue_has_size(int $size): void {
         $this->assertEquals($size, $this->redis->lLen('messenger') + $this->redis->zCard('messenger:delayed'));
     }
 
-    public function then_the_message_is_not_available_immediately() {
+    private function then_the_message_is_not_available_immediately() {
         $res = $this->transport->get();
         $this->assertCount(0, $res);
     }
 
-    public function then_the_message_is_available_after(int $delayMs) {
+    private function then_the_message_is_available_after(int $delayMs) {
         usleep($delayMs * 1000);
         $res = $this->transport->get();
         $this->assertCount(1, $res);
+    }
+
+    private function then_the_redis_transport_connect_params_use_tls() {
+        // this is NOT a great test, but setting up a redis TLS server is quite a pain, so this is just hack to give
+        // some piece of mind regarding the code, but isn't a good test because it's asserting private functionality.
+        \Closure::bind(function() {
+            TransportTest::assertEquals(['tls://redis', 6379], $this->connectParams);
+        }, $this->transport, RedisTransport::class)();
     }
 }

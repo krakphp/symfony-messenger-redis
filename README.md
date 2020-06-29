@@ -74,6 +74,10 @@ Here are the available options that can be provided to the transport options arr
   - *default:* N/A
   - *description:* The redis database to select when performing redis operations. This value can also be set from the dsn via a query parameter or by setting the path in the dsn (`redis//redis:6379?db=1` or `redis://redis:6379/1`).
 
+### TLS Support
+
+To enable TLS support, make the DSN schema `rediss://` instead of `redis://` to note that the redis client should connect with TLS.
+
 ### Processed Queue
 
 This library uses the [rpoplpush reliable queue pattern](https://redis.io/commands/rpoplpush#pattern-reliable-queue). It's important to note however that this library does not make any attempt to clean up that processed queue.

@@ -48,11 +48,16 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
             throw new InvalidArgumentException('The queue option must be included in the query parameters or configuration options.');
         }
 
+        $host = $parsedUrl['host'] ?? '127.0.0.1';
+        if ($parsedUrl['scheme'] === 'rediss') {
+            $host = 'tls://'.$host;
+        }
+
         return new self(
             $serializer,
             new Redis(),
             $options['queue'] ?? $query['queue'],
-            [$parsedUrl['host'] ?? '127.0.0.1', intval($parsedUrl['port'] ?? 6379)],
+            [$host, intval($parsedUrl['port'] ?? 6379)],
             function(Redis $conn) use ($query, $parsedUrl, $options) {
                 $auth = $options['password'] ?? $parsedUrl['pass'] ?? null;
                 if ($auth) {
