@@ -33,7 +33,6 @@
         "symfony/serializer": "^4.1"
     },
     "scripts": {
-        "test": "phpunit --testdox --colors=always",
-        "flush-redis": "docker-compose exec -T redis redis-cli flushall"
+        "test": "phpunit --testdox --colors=always"
     }
 }

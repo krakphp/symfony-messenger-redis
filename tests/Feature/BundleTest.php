@@ -13,9 +13,12 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final class BundleTest extends BaseBundleTestCase
 {
+    use RedisSteps;
+
     protected function setUp() {
         parent::setUp();
         $this->addCompilerPass(new PublicServicePass('/(Krak.*|messenger.default_serializer)/'));
+        $this->given_a_redis_client_is_configured_with_a_fresh_redis_db();
     }
 
     protected function getBundleClass() {
@@ -50,12 +53,12 @@ final class BundleTest extends BaseBundleTestCase
     public function allows_sf_redis_transport() {
         $this->given_the_kernel_is_booted_with_redis_config();
 
-        // Act: dispatch the krak redis message on the bus
+        // Act: dispatch the sf message on the bus
         /** @var MessageBusInterface $bus */
         $bus = $this->getContainer()->get('message_bus');
         $bus->dispatch(new SfRedisMessage());
 
-        // Assert: verify the message was pushed to krak redis transport
+        // Assert: verify the message was not pushed to krak redis transport
         $transport = $this->createKrakRedisTransport();
         $this->assertEquals(0, $transport->getMessageCount());
     }

@@ -4,6 +4,7 @@ namespace Krak\SymfonyMessengerRedis\Tests\Feature;
 
 use Krak\SymfonyMessengerRedis\Stamp\UniqueStamp;
 use Krak\SymfonyMessengerRedis\Transport\RedisTransport;
+use Krak\SymfonyMessengerRedis\Transport\RedisTransportFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\BusNameStamp;
@@ -11,22 +12,23 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\Serializer;
+use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
 
 final class TransportTest extends TestCase
 {
+    use RedisSteps;
+
+    /** @var TransportFactoryInterface */
+    private $transportFactory;
     private $transport;
     /** @var Envelope */
     private $envelope;
-    /** @var \Redis */
-    private $redis;
 
     protected function setUp() {
         parent::setUp();
-        $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN'));
-        $this->redis = new \Redis();
-        $this->redis->connect('redis');
-        $this->redis->auth('password123');
-        $this->redis->flushAll();
+        $this->transportFactory = new RedisTransportFactory();
+        $this->given_a_redis_client_is_configured_with_a_fresh_redis_db();
+        $this->given_the_redis_transport_is_setup_from_dsn_and_options();
     }
 
     /**
@@ -83,13 +85,6 @@ final class TransportTest extends TestCase
         $this->then_the_queues_are_empty();
     }
 
-    private function given_there_is_a_message_on_the_queue_with_legacy_serialization() {
-        $this->redis->lPush('messenger', json_encode([
-            json_encode(['id' => null]),
-            ['type' => "Krak\\SymfonyMessengerRedis\\Tests\\Feature\\Fixtures\\KrakRedisMessage"],
-        ]));
-    }
-
     /**
      * @test
      * @dataProvider provide_unique_message_ids
@@ -116,7 +111,7 @@ final class TransportTest extends TestCase
     }
 
     /** @test */
-    public function test_can_delay_messages() {
+    public function can_delay_messages() {
         $this->given_there_is_a_wrapped_message();
         $this->given_there_is_a_delay_stamp_on_the_message(100);
         $this->when_the_message_is_sent_on_the_transport(1);
@@ -124,12 +119,19 @@ final class TransportTest extends TestCase
         $this->then_the_message_is_not_available_immediately();
     }
 
-    public function test_can_delay_messages_and_wait_for_receiving() {
+    public function can_delay_messages_and_wait_for_receiving() {
         $this->given_there_is_a_wrapped_message();
         $this->given_there_is_a_delay_stamp_on_the_message(100);
         $this->when_the_message_is_sent_on_the_transport(1);
         $this->then_the_message_is_available_after(100);
         $this->then_the_queue_has_size(0);
+    }
+
+    private function given_there_is_a_message_on_the_queue_with_legacy_serialization() {
+        $this->redis->lPush('messenger', json_encode([
+            json_encode(['id' => null]),
+            ['type' => "Krak\\SymfonyMessengerRedis\\Tests\\Feature\\Fixtures\\KrakRedisMessage"],
+        ]));
     }
 
     private function given_there_is_a_wrapped_message() {
@@ -151,6 +153,31 @@ final class TransportTest extends TestCase
 
     private function given_the_message_has_been_processed_through_the_queue() {
         $this->when_the_message_is_sent_received_and_acked();
+    }
+
+    private function given_the_redis_transport_is_setup_from_dsn_and_options(?string $dsn = null, array $options = []) {
+        $this->transport = $this->createTransportFromDSNIfSupported($dsn ?? getenv('REDIS_DSN'), $options);
+    }
+
+    private function given_the_redis_transport_contains_db(string $db, string $place) {
+        if ($place === 'options') {
+            $this->given_the_redis_transport_is_setup_from_dsn_and_options(getenv('REDIS_DSN'), ['db' => $db]);
+        } else if ($place === 'query_string') {
+            $this->given_the_redis_transport_is_setup_from_dsn_and_options(getenv('REDIS_DSN').'&db='.$db);
+        } else if ($place === 'path') {
+            [$base, $query] = explode('?', getenv('REDIS_DSN'));
+            $this->given_the_redis_transport_is_setup_from_dsn_and_options($base . '/'.$db . '?' . $query);
+        } else {
+            throw new \LogicException('Invalid place: ' . $place);
+        }
+    }
+
+    private function createTransportFromDSNIfSupported(string $dsn, array $options = []): RedisTransport {
+        if (!$this->transportFactory->supports($dsn, $options)) {
+            throw new \RuntimeException('DSN is not supported.');
+        }
+
+        return $this->transportFactory->createTransport($dsn, $options, Serializer::create());
     }
 
     private function when_the_message_is_sent_on_the_transport(int $numberOfTimes = 1) {
@@ -206,19 +233,5 @@ CONTENT
         usleep($delayMs * 1000);
         $res = $this->transport->get();
         $this->assertCount(1, $res);
-    }
-
-    public function given_the_redis_transport_contains_db(string $db, string $place)
-    {
-        if ($place === 'options') {
-            $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN'), ['db' => $db]);
-        } else if ($place === 'query_string') {
-            $this->transport = RedisTransport::fromDsn(Serializer::create(), getenv('REDIS_DSN').'&db='.$db);
-        } else if ($place === 'path') {
-            [$base, $query] = explode('?', getenv('REDIS_DSN'));
-            $this->transport = RedisTransport::fromDsn(Serializer::create(), $base . '/'.$db . '?' . $query);
-        } else {
-            throw new \LogicException('Invalid place: ' . $place);
-        }
     }
 }
