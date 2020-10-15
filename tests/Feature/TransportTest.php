@@ -2,6 +2,7 @@
 
 namespace Krak\SymfonyMessengerRedis\Tests\Feature;
 
+use Krak\SymfonyMessengerRedis\Stamp\DebounceStamp;
 use Krak\SymfonyMessengerRedis\Stamp\UniqueStamp;
 use Krak\SymfonyMessengerRedis\Transport\RedisTransport;
 use Krak\SymfonyMessengerRedis\Transport\RedisTransportFactory;
@@ -125,10 +126,29 @@ final class TransportTest extends TestCase
         $this->then_the_message_is_not_available_immediately();
     }
 
+    /** @test */
     public function can_delay_messages_and_wait_for_receiving() {
         $this->given_there_is_a_wrapped_message();
         $this->given_there_is_a_delay_stamp_on_the_message(100);
         $this->when_the_message_is_sent_on_the_transport(1);
+        $this->then_the_message_is_available_after(100);
+        $this->then_the_queue_has_size(0);
+    }
+
+    /** @test */
+    public function can_handle_debounce_stamp_messages() {
+        $this->given_there_is_a_wrapped_message();
+        $this->given_there_is_a_debounce_stamp_on_the_message(100, '456');
+        $this->when_the_message_is_sent_on_the_transport(5);
+        $this->then_the_queue_has_size(1);
+    }
+
+    /** @test */
+    public function can_debounce_messages_and_wait_for_receiving() {
+        $this->given_there_is_a_wrapped_message();
+        $this->given_there_is_a_debounce_stamp_on_the_message(100, '7890');
+        $this->given_the_message_is_sent_on_the_transport();
+        $this->when_another_message_is_sent_on_the_transport_with_same_stamp_after_a_delay_of(500);
         $this->then_the_message_is_available_after(100);
         $this->then_the_queue_has_size(0);
     }
@@ -150,6 +170,10 @@ final class TransportTest extends TestCase
 
     private function given_there_is_a_delay_stamp_on_the_message(int $delayMs) {
         $this->envelope = $this->envelope->with(new DelayStamp($delayMs));
+    }
+
+    private function given_there_is_a_debounce_stamp_on_the_message(int $delay, ?string $id = null): void {
+        $this->envelope = $this->envelope->with(new DebounceStamp($delay, $id));
     }
 
     public function given_there_is_a_wrapped_message_in_the_queue() {
@@ -178,6 +202,11 @@ final class TransportTest extends TestCase
         }
     }
 
+    private function given_the_message_is_sent_on_the_transport(int $numberOfTimes = 1): void
+    {
+        $this->when_the_message_is_sent_on_the_transport($numberOfTimes);
+    }
+
     private function createTransportFromDSNIfSupported(string $dsn, array $options = []): RedisTransport {
         if (!$this->transportFactory->supports($dsn, $options)) {
             throw new \RuntimeException('DSN is not supported.');
@@ -190,6 +219,11 @@ final class TransportTest extends TestCase
         for ($i = 0; $i < $numberOfTimes; $i++) {
             $this->transport->send($this->envelope);
         }
+    }
+
+    private function when_another_message_is_sent_on_the_transport_with_same_stamp_after_a_delay_of(int $delayMs) {
+        usleep($delayMs * 1000);
+        $this->transport->send($this->envelope);
     }
 
     private function when_the_message_is_sent_received_and_acked(callable $stampEnv = null) {
