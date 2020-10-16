@@ -2,7 +2,7 @@
 
 namespace Krak\SymfonyMessengerRedis\Transport;
 
-use Krak\SymfonyMessengerRedis\Stamp\UniqueStamp;
+use Krak\SymfonyMessengerRedis\Stamp\{UniqueStamp, DebounceStamp};
 use Redis;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
@@ -121,7 +121,8 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
             $this->queue,
             $uniqueId,
             $this->getStampDelayTimestampMs($env),
-            $message
+            $message,
+            $this->isDebounceStampExist($env) ? "1" : "0"
         ], 3);
 
         if ($this->redis->getLastError()) {
@@ -132,8 +133,8 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
     }
 
     private function getStampDelayTimestampMs(Envelope $env): ?float {
-        /** @var DelayStamp|null $stamp */
-        $stamp = $env->last(DelayStamp::class);
+        /** @var DebounceStamp|DelayStamp|null $stamp */
+        $stamp = $env->last(DebounceStamp::class) ?: $env->last(DelayStamp::class);
         if (!$stamp) {
             return null;
         }
@@ -146,12 +147,17 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
 
     private function encodeEnvelopeWithUniqueId(Envelope $env): array {
         $encoded = $this->serializer->encode($env);
-        /** @var UniqueStamp|null $uniqueStamp */
-        $uniqueStamp = $env->last(UniqueStamp::class);
-        $uniqueId = $uniqueStamp ? strval($uniqueStamp->getId() ?: md5($encoded['body'])) : null;
+        /** @var DebounceStamp|UniqueStamp|null $stamp */
+        $stamp = $env->last(DebounceStamp::class)?: $env->last(UniqueStamp::class);
+        $uniqueId = $stamp ? strval($stamp->getId() ?: md5($encoded['body'])) : null;
         return [\json_encode(array_merge($encoded, [
             'uniqueId' => $uniqueId,
         ])), $uniqueId];
+    }
+
+    private function isDebounceStampExist(Envelope $env): bool
+    {
+        return \boolval($env->last(DebounceStamp::class));
     }
 
     public function getMessageCount(): int {
@@ -199,6 +205,14 @@ local queueKey = KEYS[3]
 local uniqueId = ARGV[1]
 local delayTimestampMs = ARGV[2]
 local message = ARGV[3]
+local isDebounceStampExist = ARGV[4]
+
+-- do we have a unique id and is it apart of the unique set and isDebounceStampExist is true? 
+if isDebounceStampExist == "1" and uniqueId ~= "" and redis.call("SISMEMBER", uniqueSetKey, uniqueId) == 1 then
+  redis.call("ZREM", delaySetKey, message)
+  redis.call("ZADD", delaySetKey, delayTimestampMs, message)
+  return 3
+end
 
 -- do we have a unique id and is it apart of the unique set?
 if uniqueId ~= "" and redis.call("SISMEMBER", uniqueSetKey, uniqueId) == 1 then
