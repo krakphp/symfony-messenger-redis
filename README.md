@@ -61,6 +61,18 @@ Example usage of this stamp:
 
 This library supports the DelayStamp provided by the core SF messenger.
 
+### Debounce Messages
+
+You can use DebounceStamp to debounce message sending to  transport.
+
+DebounceStamp is similar to the DelayStamp, but essentially, if a debounced message is new, we enter it into the queue exactly like a unique & delayed message would. But if there is a similar message still waiting to be queued, then we would remove it, and re-add it with the new delay. For anyone not aware of what debounce is, https://redd.one/blog/debounce-vs-throttle
+
+```php
+use Symfony\Component\Messenger\Envelope;
+use Krak\SymfonyMessengerRedis\Stamp\DebounceStamp;
+Envelope::wrap($message)->with(new DebounceStamp('delay-in-ms', 'optional-unique-id'));
+```
+
 ### Available Options
 
 Here are the available options that can be provided to the transport options array or as query parameters:
