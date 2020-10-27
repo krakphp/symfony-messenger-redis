@@ -162,7 +162,10 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
 
     public function getMessageCount(): int {
         $this->connect();
-        return (int) $this->redis->lLen($this->queue);
+        $pipe = $this->redis->multi(Redis::PIPELINE);
+        $pipe->lLen($this->queue);
+        $pipe->zCount($this->getDelayedSetName(), '-inf', '+inf');
+        return array_sum(array_map('intval', $pipe->exec()));
     }
 
     private function connect(): void {
