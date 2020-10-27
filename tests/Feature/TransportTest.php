@@ -11,6 +11,7 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\BusNameStamp;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
+use Symfony\Component\Messenger\Stamp\StampInterface;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\Serializer;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
@@ -153,6 +154,24 @@ final class TransportTest extends TestCase
         $this->then_the_queue_has_size(0);
     }
 
+    /**
+     * @test
+     * @dataProvider provide_get_message_count_for_stamps
+     */
+    public function get_message_count_for_stamps(StampInterface $stamp, int $count) {
+        $this->given_there_is_a_wrapped_message();
+        $this->given_there_is_a_stamp_on_the_message($stamp);
+        $this->when_the_message_is_sent_on_the_transport();
+        $this->then_message_count_in_the_queue($count);
+    }
+
+    public function provide_get_message_count_for_stamps()
+    {
+        yield 'unique stamp' => [new UniqueStamp(1), 1];
+        yield 'delay stamp' => [new DelayStamp(100), 1];
+        yield 'debounce stamp' => [new DebounceStamp(100, 1), 1];
+    }
+
     private function given_there_is_a_message_on_the_queue_with_legacy_serialization() {
         $this->redis->lPush('messenger', json_encode([
             json_encode(['id' => null]),
@@ -165,15 +184,20 @@ final class TransportTest extends TestCase
     }
 
     private function given_there_is_a_unique_stamp_on_the_message(?string $id = null) {
-        $this->envelope = $this->envelope->with(new UniqueStamp($id));
+        $this->given_there_is_a_stamp_on_the_message(new UniqueStamp($id));
     }
 
     private function given_there_is_a_delay_stamp_on_the_message(int $delayMs) {
-        $this->envelope = $this->envelope->with(new DelayStamp($delayMs));
+        $this->given_there_is_a_stamp_on_the_message(new DelayStamp($delayMs));
     }
 
     private function given_there_is_a_debounce_stamp_on_the_message(int $delay, ?string $id = null): void {
-        $this->envelope = $this->envelope->with(new DebounceStamp($delay, $id));
+        $this->given_there_is_a_stamp_on_the_message(new DebounceStamp($delay, $id));
+    }
+
+    private function given_there_is_a_stamp_on_the_message(StampInterface $stamp): void
+    {
+        $this->envelope = $this->envelope->with($stamp);
     }
 
     public function given_there_is_a_wrapped_message_in_the_queue() {
@@ -281,5 +305,10 @@ CONTENT
         \Closure::bind(function() {
             TransportTest::assertEquals(['tls://redis', 6379], $this->connectParams);
         }, $this->transport, RedisTransport::class)();
+    }
+
+    private function then_message_count_in_the_queue(int $count): void
+    {
+        $this->assertEquals($count, $this->transport->getMessageCount());
     }
 }
