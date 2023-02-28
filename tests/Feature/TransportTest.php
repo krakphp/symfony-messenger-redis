@@ -26,7 +26,7 @@ final class TransportTest extends TestCase
     /** @var Envelope */
     private $envelope;
 
-    protected function setUp() {
+    protected function setUp(): void {
         parent::setUp();
         $this->transportFactory = new RedisTransportFactory();
         $this->given_a_redis_client_is_configured_with_a_fresh_redis_db();

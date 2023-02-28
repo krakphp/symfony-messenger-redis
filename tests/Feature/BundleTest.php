@@ -15,9 +15,9 @@ final class BundleTest extends BaseBundleTestCase
 {
     use RedisSteps;
 
-    protected function setUp() {
+    protected function setUp(): void {
         parent::setUp();
-        $this->addCompilerPass(new PublicServicePass('/(Krak.*|messenger.default_serializer)/'));
+        $this->addCompilerPass(new PublicServicePass('/(Krak.*|messenger.default_serializer|.*MessageBus.*)/'));
         $this->given_a_redis_client_is_configured_with_a_fresh_redis_db();
     }
 
@@ -39,7 +39,7 @@ final class BundleTest extends BaseBundleTestCase
 
         // Act: dispatch the krak redis message on the bus
         /** @var MessageBusInterface $bus */
-        $bus = $this->getContainer()->get('message_bus');
+        $bus = $this->messageBus();
         $bus->dispatch(new KrakRedisMessage());
 
         // Assert: verify the message was pushed to krak redis transport
@@ -55,7 +55,7 @@ final class BundleTest extends BaseBundleTestCase
 
         // Act: dispatch the sf message on the bus
         /** @var MessageBusInterface $bus */
-        $bus = $this->getContainer()->get('message_bus');
+        $bus = $this->messageBus();
         $bus->dispatch(new SfRedisMessage());
 
         // Assert: verify the message was not pushed to krak redis transport
@@ -75,5 +75,9 @@ final class BundleTest extends BaseBundleTestCase
         return $transportFactory->createTransport(getenv('REDIS_DSN'), [
             'blocking_timeout' => 1,
         ], $this->getContainer()->get('messenger.default_serializer'));
+    }
+
+    private function messageBus(): MessageBusInterface {
+        return $this->getContainer()->get(MessageBusInterface::class);
     }
 }
