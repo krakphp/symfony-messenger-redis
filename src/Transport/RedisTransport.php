@@ -81,7 +81,7 @@ final class RedisTransport implements TransportInterface, MessageCountAwareInter
             $this->getDelayedSetName(),
             $this->queue,
             $this->getProcessingQueue(),
-            microtime(true) * 1000,
+            round(microtime(true) * 1000),
         ], 4);
 
         if ($this->redis->getLastError()) {
